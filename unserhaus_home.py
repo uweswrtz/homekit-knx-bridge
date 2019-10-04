@@ -177,6 +177,7 @@ class KnxSwitch(Accessory):
         self.switch = Switch(xknx,
                     name='HK_00ZE_JZH',
                     group_address='0/3/5')
+
     
     # @Accessory.run_at_interval(3)
     # async def run(self):
@@ -188,52 +189,86 @@ class KnxSwitch(Accessory):
         #self._gpio_setup(self.pin)
 
     def set_switch(self, value):
+        #print(xknx)
         if value:
-            # await self.switch.set_on()
-            self.switch.set_on()
             logging.debug("set_switch: %s", value)
-            print("set_switch: %s" %  value)
+            #loop.run_until_complete(self.switch.set_on())
+            #asyncio.run(self.switch.set_on()) 
+            #asyncio.create_task(self.switch.set_on())
+            #await self.switch.set_on()
+            self.driver.add_job(self.switch.set_on())
+            #self.driver.loop.create_task(self.switch.set_on())
+            #asyncio.get_event_loop().run_until_complete(self.switch.set_on())
+            #print("set_switch: %s" %  value)
         else:
             logging.debug("set_switch: %s", value)
-            # await self.switch.set_off()
-            self.switch.set_off()
-            print("set_switch: %s" % value)
+            #loop.run_until_complete(self.switch.set_off())
+            #asyncio.run(self.switch.set_off())
+            self.driver.add_job(self.switch.set_off())
+            #self.driver.loop.create_task(self.switch.set_off())
+            #print("set_switch: %s" % value)
 
-    # def stop(self):
-    #     super().stop()
-    #     GPIO.cleanup()
+
+
+
+class KNXBridge(Bridge):
+    def __init__(self, *args, xknx, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    async def stop(self):
+        await xknx.stop()
+        await super().stop()
+        
 
 def get_bridge(driver,xknx):
-    print('get_bridge')
-    bridge = Bridge(driver, 'Homekit KNX Bridge')
-
+    #print('get_bridge')
+    bridge = KNXBridge(driver, 'Homekit KNX Bridge', xknx=xknx)
+    #bridge = Bridge(driver, 'Homekit KNX Bridge')
     # bridge.add_accessory(LightBulb(driver, 'Fake Lightbulb'))
     # bridge.add_accessory(FakeFan(driver, 'Fake Big Fan'))
     # bridge.add_accessory(GarageDoor(driver, 'Fake Garage'))
     # bridge.add_accessory(TemperatureSensor(driver, 'Fake Sensor'))
-    bridge.add_accessory(KnxSwitch(driver, 'Jemand@Home', xknx=xknx))
+    bridge.add_accessory(KnxSwitch(driver, 'Anwesend', xknx=xknx))
+    
 
     return bridge
 
+async def telegram_received_cb(telegram):
+    print("Telegram received: {0}".format(telegram))
+
 async def get_xknx():
-    print("get_xknx")
-    xknx = XKNX(config='xknx.yaml')
-    #await xknx.start()
+    #print("get_xknx")
+    xknx = XKNX(config="xknx.yaml")
+    await xknx.start()
 
     return xknx
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
     # pylint: disable=invalid-name
     try:
-        print("dummy")
-        xknx = asyncio.run(get_xknx())
+
+        loop = asyncio.get_event_loop()
+        xknx = loop.run_until_complete(get_xknx())
+        #print(xknx)
+        #xknx = asyncio.run(get_xknx())
     except Exception as e:
         print('Exception: ',e)
         print('Exiting...')
         exit()
 
-    driver = AccessoryDriver(port=51826, persist_file='unserhaus_home.state')
+    
+    driver = AccessoryDriver(loop=loop, port=51826, persist_file='unserhaus_home.state')
+    #xknx = driver.async_run_job(get_xknx())
+    #print(driver.loop)
+    
     driver.add_accessory(accessory=get_bridge(driver,xknx))
+    #driver.add_job(xknx.start())
     signal.signal(signal.SIGTERM, driver.signal_handler)
 
     driver.start()
+    #driver.async_add_job(xknx.start())
+    
+    #driver.add_job(xknx.stop())
+    #loop.run_until_complete(xknx.stop())
+   # driver.stop()
