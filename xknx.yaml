@@ -1,10 +1,12 @@
 
 general:
-    own_address: '1.1.249'
+    own_address: 1.1.249
     rate_limit: 18
 
 connection:
     auto:
+    #tunneling: 
+    #    gateway_ip: 192.168.1.1
     
 groups:
 
