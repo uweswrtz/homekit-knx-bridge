@@ -168,15 +168,15 @@ class KnxSwitch(Accessory):
 
     category = CATEGORY_SWITCH
 
-    def __init__(self, *args, xknx, **kwargs):
+    def __init__(self, *args, xknx, objname, group_address, **kwargs):
         super().__init__(*args, **kwargs)
 
         serv_switch = self.add_preload_service('Switch')
         self.char_switch = serv_switch.configure_char('On',setter_callback=self.set_switch)
         
         self.switch = Switch(xknx,
-                    name='HK_00ZE_JZH',
-                    group_address='0/3/5')
+                    name=objname,
+                    group_address=group_address)
 
     
     # @Accessory.run_at_interval(3)
@@ -222,13 +222,14 @@ class KNXBridge(Bridge):
 
 def get_bridge(driver,xknx):
     #print('get_bridge')
-    bridge = KNXBridge(driver, 'Homekit KNX Bridge', xknx=xknx)
+    bridge = KNXBridge(driver, 'Dev Homekit KNX Bridge', xknx=xknx)
     #bridge = Bridge(driver, 'Homekit KNX Bridge')
     # bridge.add_accessory(LightBulb(driver, 'Fake Lightbulb'))
     # bridge.add_accessory(FakeFan(driver, 'Fake Big Fan'))
     # bridge.add_accessory(GarageDoor(driver, 'Fake Garage'))
     # bridge.add_accessory(TemperatureSensor(driver, 'Fake Sensor'))
-    bridge.add_accessory(KnxSwitch(driver, 'Anwesend', xknx=xknx))
+    bridge.add_accessory(KnxSwitch(driver, 'Anwesend', xknx=xknx, objname='HK_00ZE_JZH',group_address='0/3/5'))
+    bridge.add_accessory(KnxSwitch(driver, 'Licht', xknx=xknx, objname='L_03DI_1',group_address='3/0/5'))
     
 
     return bridge
@@ -246,24 +247,15 @@ async def get_xknx():
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     # pylint: disable=invalid-name
-    try:
 
-        loop = asyncio.get_event_loop()
-        xknx = loop.run_until_complete(get_xknx())
-        #print(xknx)
-        #xknx = asyncio.run(get_xknx())
-    except Exception as e:
-        print('Exception: ',e)
-        print('Exiting...')
-        exit()
+    loop = asyncio.get_event_loop()
+    xknx = loop.run_until_complete(get_xknx())
 
     
     driver = AccessoryDriver(loop=loop, port=51826, persist_file='unserhaus_home.state')
-    #xknx = driver.async_run_job(get_xknx())
-    #print(driver.loop)
     
     driver.add_accessory(accessory=get_bridge(driver,xknx))
-    #driver.add_job(xknx.start())
+
     signal.signal(signal.SIGTERM, driver.signal_handler)
 
     driver.start()
