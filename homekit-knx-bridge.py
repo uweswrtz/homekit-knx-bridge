@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """Starts a fake fan, lightbulb, garage door and a TemperatureSensor
 """
 import logging
