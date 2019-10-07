@@ -3,6 +3,8 @@
 import logging
 import signal
 import random
+import getopt
+import sys
 
 from pyhap.accessory import Accessory, Bridge
 from pyhap.accessory_driver import AccessoryDriver
@@ -25,7 +27,6 @@ from xknx import XKNX
 from xknx.devices import Switch
 
 logging.basicConfig(level=logging.INFO, format="[%(module)s] %(message)s")
-
 
 class TemperatureSensor(Accessory):
     """Fake Temperature sensor, measuring every 3 seconds."""
@@ -220,9 +221,9 @@ class KNXBridge(Bridge):
         await super().stop()
         
 
-def get_bridge(driver,xknx):
+def get_bridge(driver,bridge_name,xknx):
     #print('get_bridge')
-    bridge = KNXBridge(driver, 'Dev Homekit KNX Bridge', xknx=xknx)
+    bridge = KNXBridge(driver, bridge_name, xknx=xknx)
     #bridge = Bridge(driver, 'Homekit KNX Bridge')
     # bridge.add_accessory(LightBulb(driver, 'Fake Lightbulb'))
     # bridge.add_accessory(FakeFan(driver, 'Fake Big Fan'))
@@ -233,6 +234,17 @@ def get_bridge(driver,xknx):
     
 
     return bridge
+
+def show_help():
+    """Print Help."""
+    print("HomeKit KNX Bridge")
+    print("")
+    print("Usage:")
+    print("")
+    print(__file__, "                            Start with defaults")
+    print(__file__, "-n --name                   Set bridge name")
+    print(__file__, "-h --help                   Print help")
+    print("")
 
 async def telegram_received_cb(telegram):
     print("Telegram received: {0}".format(telegram))
@@ -245,16 +257,39 @@ async def get_xknx():
     return xknx
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+
     # pylint: disable=invalid-name
 
-    loop = asyncio.get_event_loop()
-    xknx = loop.run_until_complete(get_xknx())
+    bridge_name = "HomeKit KNX Bridge"
 
+    """Parse command line arguments."""
+    try:
+        opts, _ = getopt.getopt(sys.argv[1:], "hn:", ["help", "name="])
+    except getopt.GetoptError:
+        show_help()
+        sys.exit(2)
+    address_filters = None
+    for opt, arg in opts:
+        if opt in ['-h', '--help']:
+            show_help()
+            sys.exit()
+        if opt in ['-n', '--name']:
+            bridge_name = arg
+
+    logging.info("Bridge name: %s", bridge_name)
+    
+    loop = asyncio.get_event_loop()
+
+    try:
+        xknx = loop.run_until_complete(get_xknx())
+    except Exception as e:
+        logging.info('Exception for KNX: %s',e)
+        logging.info('Exiting...')
+        sys.exit(1)
     
     driver = AccessoryDriver(loop=loop, port=51826, persist_file='unserhaus_home.state')
     
-    driver.add_accessory(accessory=get_bridge(driver,xknx))
+    driver.add_accessory(accessory=get_bridge(driver, bridge_name, xknx))
 
     signal.signal(signal.SIGTERM, driver.signal_handler)
 
