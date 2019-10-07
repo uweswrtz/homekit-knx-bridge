@@ -185,32 +185,50 @@ class KnxSwitch(Accessory):
     # @Accessory.run_at_interval(3)
     # async def run(self):
     #     self.char_temp.set_value(random.randint(18, 26))
-
-    
+   
     def __setstate__(self, state):
         self.__dict__.update(state)
         #self._gpio_setup(self.pin)
 
     def set_switch(self, value):
-        #print(xknx)
+
         if value:
             logging.debug("set_switch: %s", value)
-            #loop.run_until_complete(self.switch.set_on())
-            #asyncio.run(self.switch.set_on()) 
-            #asyncio.create_task(self.switch.set_on())
-            #await self.switch.set_on()
             self.driver.add_job(self.switch.set_on())
-            #self.driver.loop.create_task(self.switch.set_on())
-            #asyncio.get_event_loop().run_until_complete(self.switch.set_on())
-            #print("set_switch: %s" %  value)
+
         else:
             logging.debug("set_switch: %s", value)
-            #loop.run_until_complete(self.switch.set_off())
-            #asyncio.run(self.switch.set_off())
-            self.driver.add_job(self.switch.set_off())
-            #self.driver.loop.create_task(self.switch.set_off())
-            #print("set_switch: %s" % value)
 
+            self.driver.add_job(self.switch.set_off())
+
+class KnxSwitch2(Accessory):
+    """KNX Switch"""
+
+    category = CATEGORY_SWITCH
+
+    def __init__(self, *args, xknx, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        serv_switch = self.add_preload_service('Switch')
+        self.char_switch = serv_switch.configure_char('On',setter_callback=self.set_switch)
+    
+    # @Accessory.run_at_interval(3)
+    # async def run(self):
+    #     self.char_temp.set_value(random.randint(18, 26))
+   
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        #self._gpio_setup(self.pin)
+
+    def set_switch(self, value):
+
+        if value:
+            logging.debug("set_switch: %s", value)
+            self.driver.add_job(xknx.devices[self.display_name].set_on())
+
+        else:
+            logging.debug("set_switch: %s", value)
+            self.driver.add_job(xknx.devices[self.display_name].set_off())
 
 
 
@@ -224,7 +242,7 @@ class KNXBridge(Bridge):
         
 
 def get_bridge(driver,bridge_name,xknx):
-    #print('get_bridge')
+
     bridge = KNXBridge(driver, bridge_name, xknx=xknx)
     #bridge = Bridge(driver, 'Homekit KNX Bridge')
     # bridge.add_accessory(LightBulb(driver, 'Fake Lightbulb'))
@@ -234,8 +252,24 @@ def get_bridge(driver,bridge_name,xknx):
     bridge.add_accessory(KnxSwitch(driver, 'Anwesend', xknx=xknx, objname='HK_00ZE_JZH',group_address='0/3/5'))
     bridge.add_accessory(KnxSwitch(driver, 'Licht', xknx=xknx, objname='L_03DI_1',group_address='3/0/5'))
     
-
     return bridge
+
+
+def get_bridge_from_config(driver,bridge_name,xknx):
+
+    """Creates bridge and adds accessories based on config file and device list form xknx"""
+    
+    bridge = KNXBridge(driver, bridge_name, xknx=xknx)
+    
+    for device in xknx.devices:
+        if isinstance(device, Switch):
+            bridge.add_accessory(KnxSwitch2(driver, device.name, xknx=xknx))
+ 
+        else:
+            logging.info("%s: %s not supported yet", device.name, type(device))
+        
+    return bridge
+
 
 def show_help():
     """Print Help."""
@@ -263,6 +297,7 @@ if __name__ == "__main__":
     # pylint: disable=invalid-name
 
     bridge_name = "HomeKit KNX Bridge"
+    persist_file = "homekit-knx-bridge.state"
 
     """Parse command line arguments."""
     try:
@@ -288,10 +323,11 @@ if __name__ == "__main__":
         logging.info('Exception for KNX: %s',e)
         logging.info('Exiting...')
         sys.exit(1)
+
     
     driver = AccessoryDriver(loop=loop, port=51826, persist_file='unserhaus_home.state')
     
-    driver.add_accessory(accessory=get_bridge(driver, bridge_name, xknx))
+    driver.add_accessory(accessory=get_bridge_from_config(driver, bridge_name, xknx))
 
     signal.signal(signal.SIGTERM, driver.signal_handler)
 
