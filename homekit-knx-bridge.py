@@ -264,6 +264,7 @@ def get_bridge_from_config(driver,bridge_name,xknx):
     for device in xknx.devices:
         if isinstance(device, Switch):
             bridge.add_accessory(KnxSwitch2(driver, device.name, xknx=xknx))
+            logging.debug("added accessory %s: %s ", device.name, type(device))
  
         else:
             logging.info("%s: %s not supported yet", device.name, type(device))
@@ -279,16 +280,21 @@ def show_help():
     print("")
     print(__file__, "                            Start with defaults")
     print(__file__, "-n --name                   Set bridge name")
+    print(__file__, "-f --file                   Set config file")
     print(__file__, "-h --help                   Print help")
     print("")
 
 async def telegram_received_cb(telegram):
     print("Telegram received: {0}".format(telegram))
 
-async def get_xknx():
+async def get_xknx(config_file):
     #print("get_xknx")
-    xknx = XKNX(config="xknx.yaml")
+    xknx = XKNX(config=config_file)
     await xknx.start()
+
+    for device in xknx.devices:
+
+        logging.info("Device from config: %s", device)
 
     return xknx
 
@@ -298,10 +304,11 @@ if __name__ == "__main__":
 
     bridge_name = "HomeKit KNX Bridge"
     persist_file = "homekit-knx-bridge.state"
+    config_file = "xknx.yaml"
 
     """Parse command line arguments."""
     try:
-        opts, _ = getopt.getopt(sys.argv[1:], "hn:", ["help", "name="])
+        opts, _ = getopt.getopt(sys.argv[1:], "hnf:", ["help", "name=", "file="])
     except getopt.GetoptError:
         show_help()
         sys.exit(2)
@@ -312,20 +319,23 @@ if __name__ == "__main__":
             sys.exit()
         if opt in ['-n', '--name']:
             bridge_name = arg
+        if opt in ['-f', '--file']:
+            config_file = arg
 
     logging.info("Bridge name: %s", bridge_name)
     
     loop = asyncio.get_event_loop()
 
     try:
-        xknx = loop.run_until_complete(get_xknx())
+        xknx = loop.run_until_complete(get_xknx(config_file))
     except Exception as e:
         logging.info('Exception for KNX: %s',e)
         logging.info('Exiting...')
         sys.exit(1)
 
+
     
-    driver = AccessoryDriver(loop=loop, port=51826, persist_file='unserhaus_home.state')
+    driver = AccessoryDriver(loop=loop, port=51826, persist_file='homekit-knx-bridge.state')
     
     driver.add_accessory(accessory=get_bridge_from_config(driver, bridge_name, xknx))
 

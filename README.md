@@ -20,10 +20,13 @@ quick and dirty hack of a pure python HomeKit KNX Bridge
 
 ## Run
 
+* adapt xknx.yaml to your needs or create a copy
+
 `./homekit-knx-bridge -h`  
-`./homekit-knx-bridge --name "My HomeKit KNX Bridge"`
+`./homekit-knx-bridge --name "My HomeKit KNX Bridge"` --file myhome.yaml
 
 ### Command line options
 
 `-h`  Help  
 `-n --name` Bridge name  
+`-f --file` Set config file
