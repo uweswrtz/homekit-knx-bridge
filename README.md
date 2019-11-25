@@ -27,6 +27,10 @@ quick and dirty hack of a pure python HomeKit KNX Bridge
 
 ### Command line options
 
-`-h`  Help  
-`-n --name` Bridge name  
-`-f --file` Set config file
+```
+-n --name                   Set bridge name (Default: HomeKit KNX Bridge)
+-f --file                   Set config file (Default: xknx.yaml)
+-p --port                   Set port to listen (Default: 51826)
+-u --updates                Enable XNKX device udpates
+-h --help                   Print help
+```

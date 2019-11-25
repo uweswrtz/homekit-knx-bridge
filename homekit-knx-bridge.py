@@ -279,17 +279,26 @@ def show_help():
     print("Usage:")
     print("")
     print(__file__, "                            Start with defaults")
-    print(__file__, "-n --name                   Set bridge name")
-    print(__file__, "-f --file                   Set config file")
     print(__file__, "-h --help                   Print help")
+    print(__file__, "-n --name                   Set bridge name (Default: HomeKit KNX Bridge)")
+    print(__file__, "-f --file                   Set config file (Default: xknx.yaml)")
+    print(__file__, "-p --port                   Set port to listen (Default: 51826)")
+    print(__file__, "-u --updates                Enable XKNX device update")
     print("")
 
 async def telegram_received_cb(telegram):
     print("Telegram received: {0}".format(telegram))
 
-async def get_xknx(config_file):
+async def device_updated_cb(device):
+    logging.info("Callback received from {0} {1} ".format(device.name, device.state))
+
+
+async def get_xknx(config_file,dev_updates):
     #print("get_xknx")
-    xknx = XKNX(config=config_file)
+    if dev_updates:
+        xknx = XKNX(config=config_file,device_updated_cb=device_updated_cb)
+    else:
+        xknx = XKNX(config=config_file)
     await xknx.start()
 
     for device in xknx.devices:
@@ -305,10 +314,12 @@ if __name__ == "__main__":
     bridge_name = "HomeKit KNX Bridge"
     persist_file = "homekit-knx-bridge.state"
     config_file = "xknx.yaml"
+    port = 51826
+    dev_updates = False
 
     """Parse command line arguments."""
     try:
-        opts, _ = getopt.getopt(sys.argv[1:], "hnf:", ["help", "name=", "file="])
+        opts, _ = getopt.getopt(sys.argv[1:], "hun:f:p:", ["help", "name=", "file=", "port=", "updates"])
     except getopt.GetoptError:
         show_help()
         sys.exit(2)
@@ -321,13 +332,17 @@ if __name__ == "__main__":
             bridge_name = arg
         if opt in ['-f', '--file']:
             config_file = arg
+        if opt in ['-p', '--port']:
+            port = int(arg)
+        if opt in ['-u', '--updates']:
+            dev_updates = True
 
     logging.info("Bridge name: %s", bridge_name)
     
     loop = asyncio.get_event_loop()
 
     try:
-        xknx = loop.run_until_complete(get_xknx(config_file))
+        xknx = loop.run_until_complete(get_xknx(config_file,dev_updates))
     except Exception as e:
         logging.info('Exception for KNX: %s',e)
         logging.info('Exiting...')
@@ -335,7 +350,7 @@ if __name__ == "__main__":
 
 
     
-    driver = AccessoryDriver(loop=loop, port=51826, persist_file='homekit-knx-bridge.state')
+    driver = AccessoryDriver(loop=loop, port=port, persist_file='homekit-knx-bridge.state')
     
     driver.add_accessory(accessory=get_bridge_from_config(driver, bridge_name, xknx))
 
